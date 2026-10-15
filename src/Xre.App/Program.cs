@@ -1,6 +1,7 @@
 using Xre.App.Import;
 using Xre.App.Reconstruction;
 using System.Drawing;
+using System.ComponentModel;
 using System.Windows.Forms;
 
 namespace Xre.App;
@@ -42,16 +43,19 @@ public sealed class MainForm : Form
     private ImportResult? imported;
     private IReadOnlyList<ReconstructionCandidate> candidates = Array.Empty<ReconstructionCandidate>();
     private bool showCandidates;
+    private BindingList<EditableScopeLine> reviewLines = new();
+    private readonly Button saveButton = new() { Text = "Save review draft", Dock = DockStyle.Left, Width = 175 };
 
     public MainForm()
     {
-        Text = "Xactimate Reconstruction Estimator | v0.2.0-preview";
+        Text = "Xactimate Reconstruction Estimator | v0.3.0-preview";
         Size = new Size(1280, 760);
         BackColor = Color.FromArgb(17, 23, 35);
         ForeColor = Color.White;
         AllowDrop = true;
         var toolbar = new Panel { Dock = DockStyle.Top, Height = 44 };
         toolbar.Controls.Add(bell);
+        toolbar.Controls.Add(saveButton);
         toolbar.Controls.Add(toggleButton);
         toolbar.Controls.Add(importButton);
         Controls.Add(grid);
@@ -65,6 +69,8 @@ public sealed class MainForm : Form
             if (dialog.ShowDialog(this) == DialogResult.OK) ImportFile(dialog.FileName);
         };
         toggleButton.Click += (_, _) => { showCandidates = !showCandidates; RefreshGrid(); };
+        saveButton.Click += (_, _) => SaveReview();
+        grid.DataError += (_, e) => { status.Text = "Invalid entry. Quantity must be non-negative."; e.ThrowException = false; };
         DragEnter += (_, e) => e.Effect = e.Data?.GetDataPresent(DataFormats.FileDrop) == true
             ? DragDropEffects.Copy : DragDropEffects.None;
         DragDrop += (_, e) =>
@@ -85,6 +91,7 @@ public sealed class MainForm : Form
         {
             imported = XactimatePdfImporter.Import(path);
             candidates = ReconstructionMapper.Map(imported.Lines);
+            reviewLines = ScopeReviewStore.FromCandidates(candidates);
             showCandidates = false;
             RefreshGrid();
             status.Text = $"Estimate: {imported.EstimateNumber ?? "unknown"} | Price list: {imported.PriceList ?? "unknown"} | " +
@@ -99,12 +106,35 @@ public sealed class MainForm : Form
         }
     }
 
+    private void SaveReview()
+    {
+        if (imported is null) { status.Text = "Import an estimate before saving."; return; }
+        if (!showCandidates) { status.Text = "Switch to reconstruction candidates before saving."; return; }
+        if (!Validate() || !grid.EndEdit()) { status.Text = "Resolve invalid edits before saving."; return; }
+        using var dialog = new SaveFileDialog
+        {
+            Filter = "Review draft (*.json)|*.json",
+            FileName = (imported.EstimateNumber ?? "estimate") + "-reconstruction-review.json"
+        };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        try
+        {
+            ScopeReviewStore.Save(dialog.FileName, imported.EstimateNumber, imported.PriceList, reviewLines);
+            status.Text = $"Saved {reviewLines.Count} review candidates to {dialog.FileName} (not a priced estimate).";
+        }
+        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Save failed"); }
+    }
+
     private void RefreshGrid()
     {
         grid.DataSource = null;
         grid.DataSource = showCandidates
-            ? candidates.Select(x => new { x.SourceLine, x.Room, x.Work, x.Quantity, x.Unit, x.ReviewNote, x.Approved }).ToList()
+            ? reviewLines
             : imported?.Lines.Select(x => new { x.Number, x.Room, x.Description, x.Quantity, x.Unit, x.Page }).ToList();
+        grid.ReadOnly = !showCandidates;
+        if (showCandidates)
+            foreach (DataGridViewColumn col in grid.Columns)
+                col.ReadOnly = col.Name is "SourceLine" or "Room" or "Unit";
         toggleButton.Text = showCandidates ? "Show mitigation items" : "Show reconstruction candidates";
     }
 }
