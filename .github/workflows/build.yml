@@ -24,9 +24,9 @@ jobs:
       - name: Package tester ZIP and checksum
         shell: pwsh
         run: |
-          Compress-Archive -Path publish/* -DestinationPath Xactimate-Reconstruction-Estimator-win-x64.zip -Force
-          $hash = (Get-FileHash Xactimate-Reconstruction-Estimator-win-x64.zip -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  Xactimate-Reconstruction-Estimator-win-x64.zip" | Set-Content SHA256SUMS.txt
+          Compress-Archive -Path publish/* -DestinationPath Xactimate-Reconstruction-Estimator-win-x64-preview.zip -Force
+          $hash = (Get-FileHash Xactimate-Reconstruction-Estimator-win-x64-preview.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  Xactimate-Reconstruction-Estimator-win-x64-preview.zip" | Set-Content SHA256SUMS.txt
       - name: Upload validated Windows build
         uses: actions/upload-artifact@v4
         with:
@@ -40,4 +40,4 @@ jobs:
         shell: pwsh
         run: |
           $tag = "build-${{ github.run_number }}"
-          gh release create $tag Xactimate-Reconstruction-Estimator-win-x64.zip SHA256SUMS.txt --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "Windows Release #${{ github.run_number }}" --notes "Validated Windows x64 application build. Extract ZIP and launch Xre.App.exe. This is not a licensed Xactimate pricing integration; verify scope, quantities and prices before use." --latest
+          gh release create $tag Xactimate-Reconstruction-Estimator-win-x64-preview.zip SHA256SUMS.txt --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "Windows Release #${{ github.run_number }}" --notes "Validated Windows x64 application build. Extract ZIP and launch Xre.App.exe. This is not a licensed Xactimate pricing integration; verify scope, quantities and prices before use." --latest
