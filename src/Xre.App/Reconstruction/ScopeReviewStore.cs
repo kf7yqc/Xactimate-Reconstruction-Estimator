@@ -8,6 +8,7 @@ public sealed class EditableScopeLine : INotifyPropertyChanged
     public int SourceLine { get; set; }
     public string Room { get; set; } = "";
     public string Work { get; set; } = "";
+    public string ItemCode { get; set; } = "";
     private decimal quantity;
     public decimal Quantity { get => quantity; set { if (value < 0) throw new ArgumentOutOfRangeException(nameof(Quantity)); quantity = value; Changed(nameof(Quantity)); Changed(nameof(LineTotal)); } }
     public string Unit { get; set; } = "";
