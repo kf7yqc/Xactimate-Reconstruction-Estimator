@@ -1,7 +1,10 @@
 using Xre.App.Import;
+using Xre.App.Reconstruction;
 using System.Drawing;
 using System.Windows.Forms;
+
 namespace Xre.App;
+
 internal static class Program
 {
     [STAThread]
@@ -11,22 +14,97 @@ internal static class Program
         Application.Run(new MainForm());
     }
 }
+
 public sealed class MainForm : Form
 {
-    private readonly Label status = new() { Dock = DockStyle.Bottom, Height = 36, ForeColor = Color.LightGray, Text = "Ready — import a mitigation estimate PDF" };
+    private readonly Label status = new()
+    {
+        Dock = DockStyle.Bottom, Height = 40, ForeColor = Color.LightGray,
+        Text = "Ready — drop a mitigation estimate PDF anywhere in the window"
+    };
+    private readonly DataGridView grid = new()
+    {
+        Dock = DockStyle.Fill, BackgroundColor = Color.FromArgb(25, 34, 48),
+        ForeColor = Color.Black, AutoGenerateColumns = true,
+        AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+        AllowUserToAddRows = false, ReadOnly = true
+    };
+    private readonly Label heading = new()
+    {
+        Dock = DockStyle.Top, Height = 70,
+        Text = "RECONSTRUCTION ESTIMATOR  |  REVIEW WORKSPACE",
+        Font = new Font("Segoe UI", 17, FontStyle.Bold),
+        ForeColor = Color.DeepSkyBlue, TextAlign = ContentAlignment.MiddleCenter
+    };
+    private readonly Button bell = new() { Text = "Updates (planned)", Dock = DockStyle.Right, Width = 180 };
+    private readonly Button importButton = new() { Text = "Import mitigation PDF", Dock = DockStyle.Left, Width = 210 };
+    private readonly Button toggleButton = new() { Text = "Show reconstruction candidates", Dock = DockStyle.Left, Width = 260 };
+    private ImportResult? imported;
+    private IReadOnlyList<ReconstructionCandidate> candidates = Array.Empty<ReconstructionCandidate>();
+    private bool showCandidates;
+
     public MainForm()
     {
-        Text = "Xactimate Reconstruction Estimator | v0.1.0";
-        Size = new Size(1100, 720);
+        Text = "Xactimate Reconstruction Estimator | v0.2.0-preview";
+        Size = new Size(1280, 760);
         BackColor = Color.FromArgb(17, 23, 35);
         ForeColor = Color.White;
         AllowDrop = true;
-        var title = new Label { Text = "RECONSTRUCTION ESTIMATOR", Dock = DockStyle.Top, Height = 90, Font = new Font("Segoe UI", 23, FontStyle.Bold), ForeColor = Color.DeepSkyBlue, TextAlign = ContentAlignment.MiddleCenter };
-        var drop = new Label { Text = "DROP XACTIMATE MITIGATION PDF HERE", Dock = DockStyle.Fill, Font = new Font("Segoe UI", 17), TextAlign = ContentAlignment.MiddleCenter, BorderStyle = BorderStyle.FixedSingle };
-        var bell = new Button { Text = "🔔 Updates", Dock = DockStyle.Top, Height = 38 };
-        bell.Click += (_, _) => MessageBox.Show("Release checking is planned for Milestone 6. No updater is active yet.", "Update Center");
-        Controls.Add(drop); Controls.Add(status); Controls.Add(bell); Controls.Add(title);
-        DragEnter += (_, e) => e.Effect = e.Data?.GetDataPresent(DataFormats.FileDrop) == true ? DragDropEffects.Copy : DragDropEffects.None;
-        DragDrop += (_, e) => { var files = e.Data?.GetData(DataFormats.FileDrop) as string[]; if (files is { Length: > 0 }) { if (!files[0].EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) { status.Text = "Only PDF imports are supported"; return; } try { var result = XactimatePdfImporter.Import(files[0]); status.Text = $"Parsed {result.Lines.Count} candidate items | Price list: {result.PriceList ?? "not found"} | REVIEW REQUIRED"; MessageBox.Show(string.Join(Environment.NewLine, result.Warnings), "Import validation"); } catch (Exception ex) { status.Text = "Import failed: " + ex.Message; } } };
+        var toolbar = new Panel { Dock = DockStyle.Top, Height = 44 };
+        toolbar.Controls.Add(bell);
+        toolbar.Controls.Add(toggleButton);
+        toolbar.Controls.Add(importButton);
+        Controls.Add(grid);
+        Controls.Add(status);
+        Controls.Add(toolbar);
+        Controls.Add(heading);
+        bell.Click += (_, _) => MessageBox.Show("Update installation is planned for Milestone 6.", "Update Center");
+        importButton.Click += (_, _) =>
+        {
+            using var dialog = new OpenFileDialog { Filter = "PDF estimate (*.pdf)|*.pdf" };
+            if (dialog.ShowDialog(this) == DialogResult.OK) ImportFile(dialog.FileName);
+        };
+        toggleButton.Click += (_, _) => { showCandidates = !showCandidates; RefreshGrid(); };
+        DragEnter += (_, e) => e.Effect = e.Data?.GetDataPresent(DataFormats.FileDrop) == true
+            ? DragDropEffects.Copy : DragDropEffects.None;
+        DragDrop += (_, e) =>
+        {
+            if (e.Data?.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
+                ImportFile(files[0]);
+        };
+    }
+
+    private void ImportFile(string path)
+    {
+        if (!path.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            status.Text = "Only PDF files are supported.";
+            return;
+        }
+        try
+        {
+            imported = XactimatePdfImporter.Import(path);
+            candidates = ReconstructionMapper.Map(imported.Lines);
+            showCandidates = false;
+            RefreshGrid();
+            status.Text = $"Estimate: {imported.EstimateNumber ?? "unknown"} | Price list: {imported.PriceList ?? "unknown"} | " +
+                          $"{imported.Lines.Count} extracted items | {candidates.Count} scope candidates | REVIEW REQUIRED";
+            if (imported.Warnings.Count > 0)
+                MessageBox.Show(this, string.Join(Environment.NewLine, imported.Warnings), "Import warnings");
+        }
+        catch (Exception ex)
+        {
+            status.Text = "Import failed: " + ex.Message;
+            MessageBox.Show(this, ex.Message, "Import error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void RefreshGrid()
+    {
+        grid.DataSource = null;
+        grid.DataSource = showCandidates
+            ? candidates.Select(x => new { x.SourceLine, x.Room, x.Work, x.Quantity, x.Unit, x.ReviewNote, x.Approved }).ToList()
+            : imported?.Lines.Select(x => new { x.Number, x.Room, x.Description, x.Quantity, x.Unit, x.Page }).ToList();
+        toggleButton.Text = showCandidates ? "Show mitigation items" : "Show reconstruction candidates";
     }
 }
