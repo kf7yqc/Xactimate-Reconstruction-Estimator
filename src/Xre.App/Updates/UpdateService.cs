@@ -119,7 +119,7 @@ try {{
             $copied = $true
             break
         }} catch {{
-            Add-Content -LiteralPath $log -Value ("Copy attempt $attempt failed: " + $_.Exception.Message)
+            Add-Content -LiteralPath $log -Value ('Copy attempt ' + $attempt + ' failed: ' + $_.Exception.Message)
             Start-Sleep -Seconds 2
         }}
     }}
@@ -128,8 +128,8 @@ try {{
     if (-not (Test-Path -LiteralPath {Quote(currentExe)})) {{ throw 'Application executable missing after update.' }}
     $restarted = Start-Process -FilePath {Quote(currentExe)} -WorkingDirectory {Quote(destinationFolder)} -PassThru -ErrorAction Stop
     Start-Sleep -Seconds 3
-    if ($restarted.HasExited) {{ throw ("Application exited immediately with code " + $restarted.ExitCode) }}
-    Add-Content -LiteralPath $log -Value ("Restart verified, PID " + $restarted.Id)
+    if ($restarted.HasExited) {{ throw ('Application exited immediately with code ' + $restarted.ExitCode) }}
+    Add-Content -LiteralPath $log -Value ('Restart verified, PID ' + $restarted.Id)
 }} catch {{
     Add-Content -LiteralPath $log -Value ('UPDATE FAILED: ' + $_.Exception.ToString())
 }}
