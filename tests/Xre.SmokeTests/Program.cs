@@ -18,6 +18,14 @@ var sample = new[]
     new ImportedLine(63, "Tear out non-salv floating floor &", 185.89m, "SF", "Laundry Room", 6),
     new ImportedLine(64, "Tear out non-salv underlayment &", 185.89m, "SF", "Laundry Room", 6),
 };
+var toeKickSource = new[]
+{
+    new ImportedLine(34, "Tear out toe kick and bag for disposal", 4m, "LF", "Bathroom", 4),
+    new ImportedLine(35, "Re-skin toe kick", 4m, "LF", "Bathroom", 4)
+};
+Check(!ReconstructionMapper.Map(toeKickSource).Any(x => x.SourceLine == 34),
+    "Do not duplicate matching toe-kick re-skin already in source estimate");
+
 var mapped = ReconstructionMapper.Map(sample);
 Check(mapped.Count == sample.Length, "Every known sample work item maps");
 Check(mapped.Single(x => x.SourceLine == 61).Quantity == 138.34m, "Drywall maximum 2-foot quantity");
