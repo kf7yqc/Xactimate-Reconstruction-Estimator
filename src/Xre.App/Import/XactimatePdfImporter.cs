@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
+using UglyToad.PdfPig.DocumentLayoutAnalysis.WordExtractor;
 
 namespace Xre.App.Import;
 
@@ -28,7 +29,14 @@ public static class XactimatePdfImporter
         using var pdf = PdfDocument.Open(path);
         foreach (var page in pdf.GetPages())
         {
-            var text = ContentOrderTextExtractor.GetText(page);
+            // Group words by their PDF coordinates rather than trusting page.Text ordering.
+            // This retains one physical estimate row per line in multi-column Xactimate PDFs.
+            var words = page.GetWords().ToList();
+            var rows = words.GroupBy(w => Math.Round(w.BoundingBox.Bottom, 0))
+                .OrderByDescending(g => g.Key)
+                .Select(g => string.Join(" ", g.OrderBy(w => w.BoundingBox.Left).Select(w => w.Text)))
+                .ToList();
+            var text = string.Join("\n", rows);
             estimate ??= Estimate.Match(text) is { Success: true } e ? e.Groups[1].Value : null;
             priceList ??= PriceList.Match(text) is { Success: true } p ? p.Groups[1].Value : null;
             var continued = Continued.Match(text);
