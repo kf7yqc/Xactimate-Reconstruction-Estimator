@@ -11,5 +11,16 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore src/Xre.App/Xre.App.csproj
       - name: Build
-        run: dotnet build src/Xre.App/Xre.App.csproj -c Release
+        run: dotnet build src/Xre.App/Xre.App.csproj -c Release --no-restore
+      - name: Publish Windows application
+        run: dotnet publish src/Xre.App/Xre.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+      - name: Upload preview build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Xactimate-Reconstruction-Estimator-win-x64-preview
+          path: publish/
+          if-no-files-found: error
+          retention-days: 14
