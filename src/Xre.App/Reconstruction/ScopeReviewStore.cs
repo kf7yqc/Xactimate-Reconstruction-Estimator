@@ -29,6 +29,18 @@ public static class ScopeReviewStore
             Unit = x.Unit, ReviewNote = x.ReviewNote, Approved = false
         }).ToList());
 
+    public static ScopeReviewDocument Load(string filePath)
+    {
+        var document = JsonSerializer.Deserialize<ScopeReviewDocument>(File.ReadAllText(filePath))
+            ?? throw new InvalidDataException("Review draft is empty or invalid.");
+        if (document.Lines is null || document.Lines.Count > 5000)
+            throw new InvalidDataException("Review draft has invalid line data.");
+        foreach (var line in document.Lines)
+            if (line.Quantity < 0 || line.SourceLine < 1 || string.IsNullOrWhiteSpace(line.Work))
+                throw new InvalidDataException("Review draft contains an invalid line.");
+        return document;
+    }
+
     public static void Save(string filePath, string? estimate, string? priceList, IEnumerable<EditableScopeLine> lines)
     {
         var document = new ScopeReviewDocument(estimate, priceList, DateTimeOffset.UtcNow, lines.ToList());
