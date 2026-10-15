@@ -3,6 +3,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: windows-latest
@@ -19,6 +21,19 @@ jobs:
         run: dotnet run --project tests/Xre.SmokeTests/Xre.SmokeTests.csproj -c Release
       - name: Publish Windows application
         run: dotnet publish src/Xre.App/Xre.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+      - name: Package tester ZIP and checksum
+        shell: pwsh
+        run: |
+          Compress-Archive -Path publish/* -DestinationPath Xactimate-Reconstruction-Estimator-win-x64-preview.zip -Force
+          $hash = (Get-FileHash Xactimate-Reconstruction-Estimator-win-x64-preview.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  Xactimate-Reconstruction-Estimator-win-x64-preview.zip" | Set-Content SHA256SUMS.txt
+      - name: Publish downloadable GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $tag = "preview-build-${{ github.run_number }}"
+          gh release create $tag Xactimate-Reconstruction-Estimator-win-x64-preview.zip SHA256SUMS.txt --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "Windows Tester Preview #${{ github.run_number }}" --notes "Automated unpriced reconstruction scope preview. Windows x64. Extract ZIP and launch Xre.App.exe. This preview is not a licensed Xactimate pricing integration. Review all quantities and scope items before use." --prerelease --latest=false
       - name: Upload preview build
         uses: actions/upload-artifact@v4
         with:
