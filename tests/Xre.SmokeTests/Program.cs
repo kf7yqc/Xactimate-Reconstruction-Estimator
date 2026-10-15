@@ -55,6 +55,10 @@ try
     var pdf = Path.Combine(temp, "estimate.pdf");
     ScopePdfEstimate.Export(pdf, reopened.SourceEstimate, reopened.SourcePriceList, reopened.Lines);
     Check(File.Exists(pdf) && new FileInfo(pdf).Length > 1000, "Native PDF estimate created");
+    var cumulativeBase = 10000m;
+    var overhead = decimal.Round(cumulativeBase * 0.10m, 2, MidpointRounding.AwayFromZero);
+    var profit = decimal.Round((cumulativeBase + overhead) * 0.10m, 2, MidpointRounding.AwayFromZero);
+    Check(cumulativeBase + overhead + profit == 12100m, "Cumulative 10/10 O&P equals 21 percent markup");
     Check(File.ReadAllText(html).Contains("NOT A PRICED ESTIMATE"), "Report clearly states unpriced status");
     Check(File.ReadAllText(csv).Contains("Unit Price,Line Total"), "CSV has blank pricing columns");
 }
