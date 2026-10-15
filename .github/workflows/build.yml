@@ -3,6 +3,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+concurrency:
+  group: windows-release-main
+  cancel-in-progress: true
 permissions:
   contents: write
 jobs:
@@ -21,6 +24,14 @@ jobs:
         run: dotnet publish src/Xre.App/Xre.App.csproj -c Release -p:InformationalVersion=1.0.0-build.${{ github.run_number }} -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
       - name: Run release regression tests
         run: dotnet run --project tests/Xre.SmokeTests/Xre.SmokeTests.csproj -c Release
+      - name: Validate published executable
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD "publish/Xre.App.exe"
+          if (-not (Test-Path $exe)) { throw "Missing published executable." }
+          if ((Get-Item $exe).Length -lt 100000) { throw "Published executable is unexpectedly small." }
+          $version = (Get-Item $exe).VersionInfo.ProductVersion
+          Write-Host "Published version: $version"
       - name: Package tester ZIP and checksum
         shell: pwsh
         run: |
