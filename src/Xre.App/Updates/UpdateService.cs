@@ -112,10 +112,24 @@ try {{
     Add-Content -LiteralPath $log -Value ('Update started ' + (Get-Date))
     Wait-Process -Id {pid} -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 2
-    Get-ChildItem -LiteralPath {Quote(staged)} -Force | Copy-Item -Destination {Quote(destinationFolder)} -Recurse -Force -ErrorAction Stop
+    $copied = $false
+    for ($attempt = 1; $attempt -le 8; $attempt++) {{
+        try {{
+            Get-ChildItem -LiteralPath {Quote(staged)} -Force | Copy-Item -Destination {Quote(destinationFolder)} -Recurse -Force -ErrorAction Stop
+            $copied = $true
+            break
+        }} catch {{
+            Add-Content -LiteralPath $log -Value ("Copy attempt $attempt failed: " + $_.Exception.Message)
+            Start-Sleep -Seconds 2
+        }}
+    }}
+    if (-not $copied) {{ throw 'Unable to replace application files after 8 attempts.' }}
     Add-Content -LiteralPath $log -Value 'Files copied successfully.'
-    Start-Process -FilePath {Quote(currentExe)} -WorkingDirectory {Quote(destinationFolder)} -ErrorAction Stop
-    Add-Content -LiteralPath $log -Value 'Restart requested successfully.'
+    if (-not (Test-Path -LiteralPath {Quote(currentExe)})) {{ throw 'Application executable missing after update.' }}
+    $restarted = Start-Process -FilePath {Quote(currentExe)} -WorkingDirectory {Quote(destinationFolder)} -PassThru -ErrorAction Stop
+    Start-Sleep -Seconds 3
+    if ($restarted.HasExited) {{ throw ("Application exited immediately with code " + $restarted.ExitCode) }}
+    Add-Content -LiteralPath $log -Value ("Restart verified, PID " + $restarted.Id)
 }} catch {{
     Add-Content -LiteralPath $log -Value ('UPDATE FAILED: ' + $_.Exception.ToString())
 }}
