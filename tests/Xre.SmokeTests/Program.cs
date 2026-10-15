@@ -50,6 +50,11 @@ try
         "Save/reopen preserves quantities and approval");
     ScopeHtmlReport.Export(html, reopened.SourceEstimate, reopened.SourcePriceList, reopened.Lines);
     ScopeCsvReport.Export(csv, reopened.Lines);
+    reopened.Lines[0].UnitPrice = 12.50m;
+    Check(reopened.Lines[0].LineTotal == 500m, "Unit pricing multiplies reviewed quantity");
+    var pdf = Path.Combine(temp, "estimate.pdf");
+    ScopePdfEstimate.Export(pdf, reopened.SourceEstimate, reopened.SourcePriceList, reopened.Lines);
+    Check(File.Exists(pdf) && new FileInfo(pdf).Length > 1000, "Native PDF estimate created");
     Check(File.ReadAllText(html).Contains("NOT A PRICED ESTIMATE"), "Report clearly states unpriced status");
     Check(File.ReadAllText(csv).Contains("Unit Price,Line Total"), "CSV has blank pricing columns");
 }
