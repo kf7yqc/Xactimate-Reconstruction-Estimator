@@ -1,5 +1,6 @@
 using Xre.App.Import;
 using Xre.App.Reconstruction;
+using Xre.App.Updates;
 using System.Drawing;
 using System.ComponentModel;
 using System.Windows.Forms;
@@ -37,7 +38,8 @@ public sealed class MainForm : Form
         Font = new Font("Segoe UI", 17, FontStyle.Bold),
         ForeColor = Color.DeepSkyBlue, TextAlign = ContentAlignment.MiddleCenter
     };
-    private readonly Button bell = new() { Text = "Updates (planned)", Dock = DockStyle.Right, Width = 180 };
+    private readonly Button bell = new() { Text = "Updates", Dock = DockStyle.Right, Width = 180 };
+    private AvailableUpdate? availableUpdate;
     private readonly Button importButton = new() { Text = "Import mitigation PDF", Dock = DockStyle.Left, Width = 210 };
     private readonly Button toggleButton = new() { Text = "Show reconstruction candidates", Dock = DockStyle.Left, Width = 260 };
     private ImportResult? imported;
@@ -54,7 +56,7 @@ public sealed class MainForm : Form
 
     public MainForm()
     {
-        Text = "Xactimate Reconstruction Estimator | v0.7.1-preview";
+        Text = "Xactimate Reconstruction Estimator | v0.8.0-preview";
         Size = new Size(1280, 760);
         BackColor = Color.FromArgb(17, 23, 35);
         ForeColor = Color.White;
@@ -74,7 +76,8 @@ public sealed class MainForm : Form
         Controls.Add(status);
         Controls.Add(toolbar);
         Controls.Add(heading);
-        bell.Click += (_, _) => MessageBox.Show("Update installation is planned for Milestone 6.", "Update Center");
+        bell.Click += async (_, _) => await OpenUpdateCenterAsync();
+        Shown += async (_, _) => await CheckForUpdatesAsync(false);
         importButton.Click += (_, _) =>
         {
             using var dialog = new OpenFileDialog { Filter = "PDF estimate (*.pdf)|*.pdf" };
@@ -107,6 +110,57 @@ public sealed class MainForm : Form
             if (e.Data?.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
                 ImportFile(files[0]);
         };
+    }
+
+    private async Task CheckForUpdatesAsync(bool interactive)
+    {
+        try
+        {
+            bell.Enabled = false;
+            bell.Text = "Checking...";
+            availableUpdate = await UpdateService.CheckAsync();
+            bell.Text = availableUpdate is null ? "Updates ✓" : "Updates ● NEW";
+            if (availableUpdate is not null)
+                status.Text = $"Update available: {availableUpdate.Tag}. Click the notification bell.";
+            else if (interactive)
+                MessageBox.Show(this, "You have the newest published build.", "Update Center");
+        }
+        catch (Exception ex)
+        {
+            bell.Text = "Updates !";
+            if (interactive) MessageBox.Show(this, ex.Message, "Update check failed");
+        }
+        finally { bell.Enabled = true; }
+    }
+
+    private async Task OpenUpdateCenterAsync()
+    {
+        await CheckForUpdatesAsync(false);
+        if (availableUpdate is null)
+        {
+            MessageBox.Show(this, "No newer published build was found, or the update service is unavailable.",
+                "Update Center");
+            return;
+        }
+        var answer = MessageBox.Show(this,
+            $"Build {availableUpdate.BuildNumber} is available.\\n\\n" +
+            "Save your current review draft before updating. The application will close and restart. Install now?",
+            "Install verified update", MessageBoxButtons.YesNo, MessageBoxIcon.Question,
+            MessageBoxDefaultButton.Button2);
+        if (answer != DialogResult.Yes) return;
+        try
+        {
+            bell.Enabled = false;
+            bell.Text = "Downloading...";
+            await UpdateService.StageAndRestartAsync(availableUpdate);
+            Close();
+        }
+        catch (Exception ex)
+        {
+            bell.Enabled = true;
+            bell.Text = "Updates !";
+            MessageBox.Show(this, ex.Message, "Update installation failed");
+        }
     }
 
     private void ShowScopeSummary()
