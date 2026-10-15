@@ -52,7 +52,7 @@ public static class UpdateService
         {
             var name = asset.GetProperty("name").GetString();
             var url = asset.GetProperty("browser_download_url").GetString() ?? "";
-            if (name == "Xactimate-Reconstruction-Estimator-win-x64.zip") zip = url;
+            if (name == "Xactimate-Reconstruction-Estimator-win-x64-preview.zip") zip = url;
             if (name == "SHA256SUMS.txt") checksum = url;
         }
         if (zip.Length == 0 || checksum.Length == 0) return null;
@@ -74,7 +74,7 @@ public static class UpdateService
         var checksums = await Client.GetStringAsync(update.ChecksumUrl, cancellationToken);
         var expected = checksums.Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Select(x => x.Trim())
-            .Where(x => x.EndsWith("Xactimate-Reconstruction-Estimator-win-x64.zip", StringComparison.Ordinal))
+            .Where(x => x.EndsWith("Xactimate-Reconstruction-Estimator-win-x64-preview.zip", StringComparison.Ordinal))
             .Select(x => x.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault())
             .FirstOrDefault();
         if (expected is null || expected.Length != 64 || !expected.All(Uri.IsHexDigit))
