@@ -10,7 +10,7 @@ A Windows Forms (.NET 10) review tool that imports Xactimate-style mitigation PD
 4. Right-click the ZIP > **Extract All**.
 5. Launch `Xre.App.exe` from the extracted folder. Windows may ask you to confirm running an unsigned preview.
 6. Select **Import mitigation PDF**, review source items, then switch to reconstruction candidates. Edit quantities, add notes, approve reviewed items, and save a JSON draft.
-7. Test **Export CSV** and **Export scope report**. HTML scope reports can be printed to PDF in a browser.
+7. Test **Export PDF Estimate**, **Export CSV** and **Export scope report**. Unit prices may be entered manually when you have authorized rates; blank prices remain unpriced.
 
 **If no release is visible:** the Windows build may still be running or may have failed. Open [Actions](https://github.com/kf7yqc/Xactimate-Reconstruction-Estimator/actions/workflows/build.yml) to view the run and its logs. No successful build is claimed until Actions passes.
 
@@ -25,7 +25,7 @@ A Windows Forms (.NET 10) review tool that imports Xactimate-style mitigation PD
 ## Limitations
 
 - **No Xactimate regional pricing:** Xactimate Desktop/X1 does not itself grant third-party API access. Prices must come from an authorized source.
-- **No native PDF export yet:** printable HTML is provided.
+- **Native PDF estimate export added:** creates an original Xactimate-inspired draft with room-by-room scope, optional manually entered unit pricing, and calculated line totals. This is not an official Xactimate estimate. Taxes, overhead and profit are not calculated.
 - **Updater implemented, not yet runtime-verified:** the application checks the latest GitHub release at startup and offers to install a checksum-verified ZIP after confirmation. Save your review before updating. The first installation remains a manual ZIP extraction. The application must be installed in a folder where your Windows account can write files.
 - **No verified production accuracy:** the Windows PdfPig importer must pass a full 71-line sample acceptance test.
 - No proprietary source PDFs or customer data are stored in this public repository.
