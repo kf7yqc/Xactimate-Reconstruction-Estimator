@@ -91,7 +91,6 @@ public sealed class MainForm : Form
 
     private void ImportFile(string path)
     {
-        if (!ConfirmDiscardReview()) return;
         if (!path.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
         {
             status.Text = "Only PDF files are supported.";
@@ -99,7 +98,9 @@ public sealed class MainForm : Form
         }
         try
         {
-            imported = XactimatePdfImporter.Import(path);
+            var parsed = XactimatePdfImporter.Import(path);
+            if (!ConfirmDiscardReview()) return;
+            imported = parsed;
             candidates = ReconstructionMapper.Map(imported.Lines);
             reviewLines = ScopeReviewStore.FromCandidates(candidates);
             showCandidates = false;
@@ -145,12 +146,12 @@ public sealed class MainForm : Form
 
     private void OpenReview()
     {
-        if (!ConfirmDiscardReview()) return;
         using var dialog = new OpenFileDialog { Filter = "Review draft (*.json)|*.json" };
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
         try
         {
             var document = ScopeReviewStore.Load(dialog.FileName);
+            if (!ConfirmDiscardReview()) return;
             imported = new ImportResult(document.SourceEstimate, document.SourcePriceList,
                 Array.Empty<ImportedLine>(), new[] { "Draft reopened; original mitigation PDF is not included in this draft." });
             reviewLines = new BindingList<EditableScopeLine>(document.Lines);
