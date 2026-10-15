@@ -53,15 +53,17 @@ public sealed class MainForm : Form
     private readonly Button addLineButton = new() { Text = "Add scope line", Width = 125, Height = 30 };
     private readonly Button removeLineButton = new() { Text = "Remove selected", Width = 145, Height = 30 };
     private readonly Button summaryButton = new() { Text = "Scope summary", Width = 130, Height = 30 };
+    private readonly Button pdfButton = new() { Text = "Export PDF Estimate", Width = 175, Height = 32 };
 
     public MainForm()
     {
-        Text = "Xactimate Reconstruction Estimator | v0.8.0-preview";
+        Text = "Xactimate Reconstruction Estimator | v0.9.0-preview";
         Size = new Size(1280, 760);
         BackColor = Color.FromArgb(17, 23, 35);
+        MinimumSize = new Size(950, 550);
         ForeColor = Color.White;
         AllowDrop = true;
-        var toolbar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 48, AutoScroll = true, WrapContents = false, FlowDirection = FlowDirection.LeftToRight };
+        var toolbar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 55, AutoScroll = true, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(8, 8, 8, 3), BackColor = Color.FromArgb(27, 42, 61) };
         toolbar.Controls.Add(bell);
         toolbar.Controls.Add(saveButton);
         toolbar.Controls.Add(reportButton);
@@ -72,10 +74,21 @@ public sealed class MainForm : Form
         toolbar.Controls.Add(addLineButton);
         toolbar.Controls.Add(removeLineButton);
         toolbar.Controls.Add(summaryButton);
+        toolbar.Controls.Add(pdfButton);
         Controls.Add(grid);
         Controls.Add(status);
         Controls.Add(toolbar);
         Controls.Add(heading);
+        foreach (var button in toolbar.Controls.OfType<Button>())
+        {
+            button.FlatStyle = FlatStyle.Flat;
+            button.FlatAppearance.BorderSize = 0;
+            button.BackColor = button == pdfButton ? Color.FromArgb(0, 130, 166) : Color.FromArgb(43, 65, 88);
+            button.ForeColor = Color.White;
+            button.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+            button.Height = 33;
+            button.Margin = new Padding(3, 0, 3, 0);
+        }
         bell.Click += async (_, _) => await OpenUpdateCenterAsync();
         Shown += async (_, _) => await CheckForUpdatesAsync(false);
         importButton.Click += (_, _) =>
@@ -102,6 +115,7 @@ public sealed class MainForm : Form
         addLineButton.Click += (_, _) => AddScopeLine();
         removeLineButton.Click += (_, _) => RemoveScopeLine();
         summaryButton.Click += (_, _) => ShowScopeSummary();
+        pdfButton.Click += (_, _) => ExportPdf();
         grid.DataError += (_, e) => { status.Text = "Invalid entry. Quantity must be non-negative."; e.ThrowException = false; };
         DragEnter += (_, e) => e.Effect = e.Data?.GetDataPresent(DataFormats.FileDrop) == true
             ? DragDropEffects.Copy : DragDropEffects.None;
@@ -161,6 +175,26 @@ public sealed class MainForm : Form
             bell.Text = "Updates !";
             MessageBox.Show(this, ex.Message, "Update installation failed");
         }
+    }
+
+    private void ExportPdf()
+    {
+        if (imported is null) { status.Text = "Import an estimate or open a draft first."; return; }
+        if (showCandidates && !grid.EndEdit()) { status.Text = "Resolve invalid edits first."; return; }
+        using var dialog = new SaveFileDialog
+        {
+            Filter = "PDF Estimate (*.pdf)|*.pdf",
+            FileName = (imported.EstimateNumber ?? "estimate") + "-reconstruction-estimate.pdf"
+        };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        try
+        {
+            ScopePdfEstimate.Export(dialog.FileName, imported.EstimateNumber, imported.PriceList, reviewLines);
+            status.Text = "Draft PDF estimate exported. Verify all scope, pricing, and calculations.";
+            MessageBox.Show(this, "Draft estimate PDF saved. Unpriced items show a dash; no pricing is invented.",
+                "PDF estimate ready");
+        }
+        catch (Exception ex) { MessageBox.Show(this, ex.Message, "PDF export failed"); }
     }
 
     private void ShowScopeSummary()
@@ -337,11 +371,23 @@ public sealed class MainForm : Form
             ? reviewLines
             : imported?.Lines.Select(x => new { x.Number, x.Room, x.Description, x.Quantity, x.Unit, x.Page }).ToList();
         grid.ReadOnly = !showCandidates;
+        grid.EnableHeadersVisualStyles = false;
+        grid.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(32, 57, 79);
+        grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+        grid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+        grid.ColumnHeadersHeight = 40;
+        grid.DefaultCellStyle.BackColor = Color.FromArgb(238, 243, 248);
+        grid.DefaultCellStyle.ForeColor = Color.FromArgb(24, 42, 66);
+        grid.AlternatingRowsDefaultCellStyle.BackColor = Color.White;
+        grid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(16, 115, 153);
+        grid.DefaultCellStyle.SelectionForeColor = Color.White;
+        grid.RowTemplate.Height = 31;
+        grid.BorderStyle = BorderStyle.None;
         addLineButton.Enabled = imported is not null;
         removeLineButton.Enabled = showCandidates && reviewLines.Count > 0;
         if (showCandidates)
             foreach (DataGridViewColumn col in grid.Columns)
-                col.ReadOnly = col.Name is "SourceLine" or "Room" or "Unit";
+                col.ReadOnly = col.Name is "SourceLine" or "Room" or "Unit" or "LineTotal";
         toggleButton.Text = showCandidates ? "Show mitigation items" : "Show reconstruction candidates";
     }
 }
