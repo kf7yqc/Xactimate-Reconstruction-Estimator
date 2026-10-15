@@ -44,12 +44,13 @@ public sealed class MainForm : Form
     private IReadOnlyList<ReconstructionCandidate> candidates = Array.Empty<ReconstructionCandidate>();
     private bool showCandidates;
     private BindingList<EditableScopeLine> reviewLines = new();
+    private readonly Button openDraftButton = new() { Text = "Open review draft", Dock = DockStyle.Left, Width = 170 };
     private readonly Button reportButton = new() { Text = "Export scope report", Dock = DockStyle.Left, Width = 180 };
     private readonly Button saveButton = new() { Text = "Save review draft", Dock = DockStyle.Left, Width = 175 };
 
     public MainForm()
     {
-        Text = "Xactimate Reconstruction Estimator | v0.4.0-preview";
+        Text = "Xactimate Reconstruction Estimator | v0.5.0-preview";
         Size = new Size(1280, 760);
         BackColor = Color.FromArgb(17, 23, 35);
         ForeColor = Color.White;
@@ -58,6 +59,7 @@ public sealed class MainForm : Form
         toolbar.Controls.Add(bell);
         toolbar.Controls.Add(saveButton);
         toolbar.Controls.Add(reportButton);
+        toolbar.Controls.Add(openDraftButton);
         toolbar.Controls.Add(toggleButton);
         toolbar.Controls.Add(importButton);
         Controls.Add(grid);
@@ -73,6 +75,7 @@ public sealed class MainForm : Form
         toggleButton.Click += (_, _) => { showCandidates = !showCandidates; RefreshGrid(); };
         saveButton.Click += (_, _) => SaveReview();
         reportButton.Click += (_, _) => ExportReport();
+        openDraftButton.Click += (_, _) => OpenReview();
         grid.DataError += (_, e) => { status.Text = "Invalid entry. Quantity must be non-negative."; e.ThrowException = false; };
         DragEnter += (_, e) => e.Effect = e.Data?.GetDataPresent(DataFormats.FileDrop) == true
             ? DragDropEffects.Copy : DragDropEffects.None;
@@ -111,7 +114,7 @@ public sealed class MainForm : Form
 
     private void SaveReview()
     {
-        if (imported is null) { status.Text = "Import an estimate before saving."; return; }
+        if (imported is null) { status.Text = "Import an estimate or open a review draft before saving."; return; }
         if (!showCandidates) { status.Text = "Switch to reconstruction candidates before saving."; return; }
         if (!Validate() || !grid.EndEdit()) { status.Text = "Resolve invalid edits before saving."; return; }
         using var dialog = new SaveFileDialog
@@ -126,6 +129,23 @@ public sealed class MainForm : Form
             status.Text = $"Saved {reviewLines.Count} review candidates to {dialog.FileName} (not a priced estimate).";
         }
         catch (Exception ex) { MessageBox.Show(this, ex.Message, "Save failed"); }
+    }
+
+    private void OpenReview()
+    {
+        using var dialog = new OpenFileDialog { Filter = "Review draft (*.json)|*.json" };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        try
+        {
+            var document = ScopeReviewStore.Load(dialog.FileName);
+            imported = new ImportResult(document.SourceEstimate, document.SourcePriceList,
+                Array.Empty<ImportedLine>(), new[] { "Draft reopened; original mitigation PDF is not included in this draft." });
+            reviewLines = new BindingList<EditableScopeLine>(document.Lines);
+            showCandidates = true;
+            RefreshGrid();
+            status.Text = $"Reopened {reviewLines.Count} reconstruction scope lines | REVIEW REQUIRED";
+        }
+        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Cannot open review draft"); }
     }
 
     private void ExportReport()
