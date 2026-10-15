@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using UglyToad.PdfPig;
+using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
 
 namespace Xre.App.Import;
 
@@ -27,7 +28,7 @@ public static class XactimatePdfImporter
         using var pdf = PdfDocument.Open(path);
         foreach (var page in pdf.GetPages())
         {
-            var text = page.Text;
+            var text = ContentOrderTextExtractor.GetText(page);
             estimate ??= Estimate.Match(text) is { Success: true } e ? e.Groups[1].Value : null;
             priceList ??= PriceList.Match(text) is { Success: true } p ? p.Groups[1].Value : null;
             var continued = Continued.Match(text);
@@ -43,6 +44,14 @@ public static class XactimatePdfImporter
             }
         }
         if (lines.Count == 0) warnings.Add("No line items detected. PDF layout may require position-aware extraction or manual review.");
+        var duplicates = lines.GroupBy(x => x.Number).Where(x => x.Count() > 1).Select(x => x.Key).ToArray();
+        if (duplicates.Length > 0) warnings.Add("Duplicate source item numbers detected: " + string.Join(", ", duplicates));
+        if (lines.Count > 0)
+        {
+            var numbers = lines.Select(x => x.Number).Distinct().OrderBy(x => x).ToArray();
+            var missing = Enumerable.Range(numbers[0], numbers[^1] - numbers[0] + 1).Except(numbers).Take(25).ToArray();
+            if (missing.Length > 0) warnings.Add("Possible missing source item numbers: " + string.Join(", ", missing));
+        }
         warnings.Add("All parsed quantities and room assignments require review against the source PDF.");
         warnings.Add("This import does not provide reconstruction prices or verify current Xactimate pricing.");
         return new ImportResult(estimate, priceList, lines, warnings);
