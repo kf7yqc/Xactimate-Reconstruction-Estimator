@@ -103,15 +103,27 @@ public static class UpdateService
         var currentExe = Environment.ProcessPath ?? throw new InvalidOperationException("Executable path unavailable.");
         var pid = Environment.ProcessId;
         static string Quote(string s) => "'" + s.Replace("'", "''") + "'";
+        var log = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Xre", "updater.log");
+        Directory.CreateDirectory(Path.GetDirectoryName(log)!);
         var script = $@"$ErrorActionPreference = 'Stop'
-Wait-Process -Id {pid} -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 2
-Copy-Item -LiteralPath {Quote(staged)}\* -Destination {Quote(destinationFolder)} -Recurse -Force
-Start-Process -FilePath {Quote(currentExe)}
+$log = {Quote(log)}
+try {{
+    Add-Content -LiteralPath $log -Value ('Update started ' + (Get-Date))
+    Wait-Process -Id {pid} -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+    Get-ChildItem -LiteralPath {Quote(staged)} -Force | Copy-Item -Destination {Quote(destinationFolder)} -Recurse -Force -ErrorAction Stop
+    Add-Content -LiteralPath $log -Value 'Files copied successfully.'
+    Start-Process -FilePath {Quote(currentExe)} -WorkingDirectory {Quote(destinationFolder)} -ErrorAction Stop
+    Add-Content -LiteralPath $log -Value 'Restart requested successfully.'
+}} catch {{
+    Add-Content -LiteralPath $log -Value ('UPDATE FAILED: ' + $_.Exception.ToString())
+}}
 ";
         var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
-        Process.Start(new ProcessStartInfo("powershell.exe",
+        var updater = Process.Start(new ProcessStartInfo("powershell.exe",
             "-NoProfile -NonInteractive -EncodedCommand " + encoded)
         { UseShellExecute = false, CreateNoWindow = true });
+        if (updater is null) throw new InvalidOperationException("Could not start update helper.");
     }
 }
