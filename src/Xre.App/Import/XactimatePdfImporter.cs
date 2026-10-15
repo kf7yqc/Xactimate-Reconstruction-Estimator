@@ -1,0 +1,50 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
+using UglyToad.PdfPig;
+
+namespace Xre.App.Import;
+
+public sealed record ImportedLine(int Number, string Description, decimal Quantity, string Unit, string Room, int Page);
+public sealed record ImportResult(string? EstimateNumber, string? PriceList, IReadOnlyList<ImportedLine> Lines, IReadOnlyList<string> Warnings);
+
+/// <summary>
+/// Extracts a first-pass, review-required room/line-item index from Xactimate-style PDFs.
+/// No proprietary price lists are read or inferred.
+/// </summary>
+public static class XactimatePdfImporter
+{
+    private static readonly Regex NumberedLine = new(@"^\s*(?<number>\d{1,4})\.\s+(?<description>.+?)\s+(?<qty>\d[\d,]*\.\d{2})\s+(?<unit>SF|LF|SY|EA|HR|DA|CY|CF|SQ)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex PriceList = new(@"Price List:\s*(\S+)", RegexOptions.IgnoreCase);
+    private static readonly Regex Estimate = new(@"Estimate:\s*(\S+)", RegexOptions.IgnoreCase);
+    private static readonly Regex Continued = new(@"CONTINUED\s*-\s*(Bathroom|Laundry Room|Kitchen|Bedroom|Living Room|Hallway)", RegexOptions.IgnoreCase);
+    public static ImportResult Import(string path)
+    {
+        if (!File.Exists(path)) throw new FileNotFoundException("PDF file not found.", path);
+        var lines = new List<ImportedLine>();
+        var warnings = new List<string>();
+        string? estimate = null, priceList = null;
+        string room = "General";
+        using var pdf = PdfDocument.Open(path);
+        foreach (var page in pdf.GetPages())
+        {
+            var text = page.Text;
+            estimate ??= Estimate.Match(text) is { Success: true } e ? e.Groups[1].Value : null;
+            priceList ??= PriceList.Match(text) is { Success: true } p ? p.Groups[1].Value : null;
+            var continued = Continued.Match(text);
+            if (continued.Success) room = continued.Groups[1].Value;
+            else if (Regex.IsMatch(text, @"\bLaundry Room\b", RegexOptions.IgnoreCase) && Regex.IsMatch(text, @"\bDESCRIPTION\b")) room = "Laundry Room";
+            else if (Regex.IsMatch(text, @"\bBathroom\b", RegexOptions.IgnoreCase) && Regex.IsMatch(text, @"\bDESCRIPTION\b")) room = "Bathroom";
+            foreach (var raw in Regex.Split(text, @"\r?\n"))
+            {
+                var match = NumberedLine.Match(raw);
+                if (!match.Success) continue;
+                if (!decimal.TryParse(match.Groups["qty"].Value, NumberStyles.Number, CultureInfo.InvariantCulture, out var qty)) continue;
+                lines.Add(new ImportedLine(int.Parse(match.Groups["number"].Value, CultureInfo.InvariantCulture), match.Groups["description"].Value.Trim(), qty, match.Groups["unit"].Value.ToUpperInvariant(), room, page.Number));
+            }
+        }
+        if (lines.Count == 0) warnings.Add("No line items detected. PDF layout may require position-aware extraction or manual review.");
+        warnings.Add("All parsed quantities and room assignments require review against the source PDF.");
+        warnings.Add("This import does not provide reconstruction prices or verify current Xactimate pricing.");
+        return new ImportResult(estimate, priceList, lines, warnings);
+    }
+}
