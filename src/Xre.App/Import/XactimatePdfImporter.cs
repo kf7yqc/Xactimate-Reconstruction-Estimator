@@ -1,8 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using UglyToad.PdfPig;
-using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
-using UglyToad.PdfPig.DocumentLayoutAnalysis.WordExtractor;
 
 namespace Xre.App.Import;
 
