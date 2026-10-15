@@ -28,10 +28,10 @@ public static class ReconstructionMapper
             else if (d.Contains("tear out non-salvageable tile floor"))
                 Add("Install replacement tile flooring", item.Quantity, item.Unit,
                     "VERIFY tile type, matching, waste, substrate and waterproofing.");
-            else if (d.Contains("tear out mortar bed"))
+            else if (d.Contains("tear out mortar bed") || d.Contains("add on to tear out mortar bed"))
                 Add("Restore tile mortar/setting assembly", item.Quantity, item.Unit,
                     "VERIFY assembly; avoid overlapping underlayment/backer-board items.");
-            else if (d.Contains("tear out non-salvageable cement board"))
+            else if (d.Contains("tear out non-salvageable cement"))
                 Add("Install replacement cement backer board", item.Quantity, item.Unit,
                     "VERIFY substrate assembly and appropriate installation.");
             else if (d.Contains("tear out non-salv underlayment"))
@@ -46,12 +46,12 @@ public static class ReconstructionMapper
             else if (d.Contains("tear out toe kick"))
                 Add("Repair/replace removed toe kick", item.Quantity, item.Unit,
                     "CHECK source estimate for already included re-skin to prevent duplication.");
-            else if (d.Contains("washer") && d.Contains("detach") || d.Contains("dryer") && d.Contains("detach"))
+            else if ((d.Contains("washer") || d.Contains("dryer")) && d.Contains("detach"))
                 Add("Reset existing appliance", item.Quantity, item.Unit,
                     "VERIFY retained appliance, connection requirements and serviceability.");
             else if (d.Contains("bathtub - detach") || d.Contains("sink - single basin - detach") ||
-                     d.Contains("cabinet - lower") && d.Contains("detach") ||
-                     d.Contains("countertop") && d.Contains("detach"))
+                     (d.Contains("cabinet - lower") && d.Contains("detach")) ||
+                     (d.Contains("countertop") && d.Contains("detach")))
                 Add("Reset existing detached component", item.Quantity, item.Unit,
                     "VERIFY retained component, condition, and required reconnections.");
         }
