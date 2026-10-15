@@ -78,7 +78,18 @@ public sealed class MainForm : Form
             using var dialog = new OpenFileDialog { Filter = "PDF estimate (*.pdf)|*.pdf" };
             if (dialog.ShowDialog(this) == DialogResult.OK) ImportFile(dialog.FileName);
         };
-        toggleButton.Click += (_, _) => { showCandidates = !showCandidates; RefreshGrid(); };
+        toggleButton.Click += (_, _) =>
+        {
+            if (imported is null) { status.Text = "Import an estimate or open a review draft first."; return; }
+            if (imported.Lines.Count == 0 && showCandidates)
+            {
+                status.Text = "Original mitigation items are not stored in this reopened draft.";
+                return;
+            }
+            if (showCandidates && !grid.EndEdit()) return;
+            showCandidates = !showCandidates;
+            RefreshGrid();
+        };
         saveButton.Click += (_, _) => SaveReview();
         reportButton.Click += (_, _) => ExportReport();
         openDraftButton.Click += (_, _) => OpenReview();
@@ -249,6 +260,8 @@ public sealed class MainForm : Form
             ? reviewLines
             : imported?.Lines.Select(x => new { x.Number, x.Room, x.Description, x.Quantity, x.Unit, x.Page }).ToList();
         grid.ReadOnly = !showCandidates;
+        addLineButton.Enabled = imported is not null;
+        removeLineButton.Enabled = showCandidates && reviewLines.Count > 0;
         if (showCandidates)
             foreach (DataGridViewColumn col in grid.Columns)
                 col.ReadOnly = col.Name is "SourceLine" or "Room" or "Unit";
