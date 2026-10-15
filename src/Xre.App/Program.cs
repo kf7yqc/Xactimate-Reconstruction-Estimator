@@ -41,6 +41,8 @@ public sealed partial class MainForm : Form
     private readonly Button bell = new() { Text = "Updates", Dock = DockStyle.Right, Width = 180 };
     private AvailableUpdate? availableUpdate;
     private readonly System.Windows.Forms.Timer updateTimer = new() { Interval = 30 * 60 * 1000 };
+    private readonly Button priceListButton = new() { Text = "Import Xactimate prices", Width = 195, Height = 33 };
+    private PriceListImport? priceCatalog;
     private readonly Button importButton = new() { Text = "Import mitigation PDF", Dock = DockStyle.Left, Width = 210 };
     private readonly Button toggleButton = new() { Text = "Show reconstruction candidates", Dock = DockStyle.Left, Width = 260 };
     private ImportResult? imported;
@@ -58,7 +60,7 @@ public sealed partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "Xactimate Reconstruction Estimator | v1.0.0-preview";
+        Text = "Xactimate Reconstruction Estimator | v1.0.0";
         Size = new Size(1280, 760);
         BackColor = Color.FromArgb(17, 23, 35);
         MinimumSize = new Size(950, 550);
@@ -72,6 +74,7 @@ public sealed partial class MainForm : Form
         toolbar.Controls.Add(csvButton);
         toolbar.Controls.Add(toggleButton);
         toolbar.Controls.Add(importButton);
+        toolbar.Controls.Add(priceListButton);
         toolbar.Controls.Add(addLineButton);
         toolbar.Controls.Add(removeLineButton);
         toolbar.Controls.Add(summaryButton);
@@ -91,6 +94,7 @@ public sealed partial class MainForm : Form
         Shown += async (_, _) => { await CheckForUpdatesAsync(false); updateTimer.Start(); };
         updateTimer.Tick += async (_, _) => await CheckForUpdatesAsync(false);
         FormClosed += (_, _) => updateTimer.Dispose();
+        priceListButton.Click += (_, _) => ImportPriceList();
         importButton.Click += (_, _) =>
         {
             using var dialog = new OpenFileDialog { Filter = "PDF estimate (*.pdf)|*.pdf" };
@@ -256,6 +260,21 @@ public sealed partial class MainForm : Form
         status.Text = "Selected scope line removed from this review.";
     }
 
+    private void ImportPriceList()
+    {
+        using var dialog = new OpenFileDialog { Filter = "Xactimate pricing CSV (*.csv)|*.csv" };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        try
+        {
+            priceCatalog = PriceListCsvImporter.Import(dialog.FileName);
+            var matched = PriceListCsvImporter.ApplyExactMatches(reviewLines, priceCatalog);
+            RefreshGrid();
+            status.Text = $"Imported {priceCatalog.Items.Count} price list items; {matched} exact scope matches priced. Other items require code selection.";
+            MessageBox.Show(this, status.Text, "Price list imported");
+        }
+        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Price list import failed"); }
+    }
+
     private void ImportFile(string path)
     {
         if (!path.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
@@ -270,6 +289,7 @@ public sealed partial class MainForm : Form
             imported = parsed;
             candidates = RequiredScopeAdditions.Generate(imported.Lines, ReconstructionMapper.Map(imported.Lines));
             reviewLines = ScopeReviewStore.FromCandidates(candidates);
+            if (priceCatalog is not null) PriceListCsvImporter.ApplyExactMatches(reviewLines, priceCatalog);
             showCandidates = false;
             RefreshGrid();
             status.Text = $"Estimate: {imported.EstimateNumber ?? "unknown"} | Price list: {imported.PriceList ?? "unknown"} | " +
