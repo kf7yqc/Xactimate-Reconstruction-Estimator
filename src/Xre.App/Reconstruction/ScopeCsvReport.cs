@@ -31,7 +31,8 @@ public static class ScopeCsvReport
                 Cell(line.Unit),
                 Cell(line.ReviewNote),
                 line.Approved ? "Yes" : "No",
-                "", ""
+                line.UnitPrice?.ToString("0.00", CultureInfo.InvariantCulture) ?? "",
+                line.LineTotal?.ToString("0.00", CultureInfo.InvariantCulture) ?? ""
             })).AppendLine();
         }
         File.WriteAllText(path, csv.ToString(), new UTF8Encoding(true));
