@@ -5,7 +5,7 @@ A Windows Forms (.NET 10) review tool that imports Xactimate-style mitigation PD
 ## Download a Windows test build
 
 1. Open **[Releases](https://github.com/kf7yqc/Xactimate-Reconstruction-Estimator/releases)**.
-2. Select the newest **Windows Tester Preview** prerelease.
+2. Select the newest Windows build release.
 3. Download `Xactimate-Reconstruction-Estimator-win-x64-preview.zip`.
 4. Right-click the ZIP > **Extract All**.
 5. Launch `Xre.App.exe` from the extracted folder. Windows may ask you to confirm running an unsigned preview.
@@ -26,7 +26,7 @@ A Windows Forms (.NET 10) review tool that imports Xactimate-style mitigation PD
 
 - **No Xactimate regional pricing:** Xactimate Desktop/X1 does not itself grant third-party API access. Prices must come from an authorized source.
 - **No native PDF export yet:** printable HTML is provided.
-- **No automatic installer/updater yet:** the preview is a ZIP; the notification bell remains a placeholder.
+- **Updater implemented, not yet runtime-verified:** the application checks the latest GitHub release at startup and offers to install a checksum-verified ZIP after confirmation. Save your review before updating. The first installation remains a manual ZIP extraction. The application must be installed in a folder where your Windows account can write files.
 - **No verified production accuracy:** the Windows PdfPig importer must pass a full 71-line sample acceptance test.
 - No proprietary source PDFs or customer data are stored in this public repository.
 
@@ -43,4 +43,4 @@ Optionally set `XRE_SAMPLE_PDF` to the path of a privately stored sample estimat
 
 ## Release pipeline
 
-Every push to `main` triggers `.github/workflows/build.yml`. After a successful Windows build and smoke tests, GitHub Actions publishes a numbered **prerelease** containing a Windows ZIP and SHA-256 checksum. If a test fails, no new prerelease is published.
+Every push to `main` triggers `.github/workflows/build.yml`. After a successful Windows build and smoke tests, GitHub Actions publishes a numbered **latest release** containing a Windows ZIP and SHA-256 checksum. Preview smoke tests currently run non-blocking. A failed application build still prevents publication.
