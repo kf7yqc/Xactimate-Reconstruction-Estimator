@@ -43,7 +43,13 @@ public static class XactimatePdfImporter
                 lines.Add(new ImportedLine(int.Parse(match.Groups["number"].Value, CultureInfo.InvariantCulture), match.Groups["description"].Value.Trim(), qty, match.Groups["unit"].Value.ToUpperInvariant(), room, page.Number));
             }
         }
-        if (lines.Count == 0) warnings.Add("No line items detected. PDF layout may require position-aware extraction or manual review.");
+        if (lines.Count == 0) throw new InvalidDataException("No line items detected. This PDF cannot be converted safely. Verify it contains selectable text and supported Xactimate line-item layout.");
+        foreach (var pageNumber in Enumerable.Range(1, pdf.NumberOfPages))
+        {
+            // Diagnostic counts help identify blank or missed estimate pages without exposing customer data.
+            var count = lines.Count(x => x.Page == pageNumber);
+            if (count > 0) warnings.Add($"Page {pageNumber}: {count} numbered items extracted.");
+        }
         var duplicates = lines.GroupBy(x => x.Number).Where(x => x.Count() > 1).Select(x => x.Key).ToArray();
         if (duplicates.Length > 0) warnings.Add("Duplicate source item numbers detected: " + string.Join(", ", duplicates));
         if (lines.Count > 0)
