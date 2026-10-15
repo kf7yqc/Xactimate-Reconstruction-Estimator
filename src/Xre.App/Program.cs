@@ -44,11 +44,12 @@ public sealed class MainForm : Form
     private IReadOnlyList<ReconstructionCandidate> candidates = Array.Empty<ReconstructionCandidate>();
     private bool showCandidates;
     private BindingList<EditableScopeLine> reviewLines = new();
+    private readonly Button reportButton = new() { Text = "Export scope report", Dock = DockStyle.Left, Width = 180 };
     private readonly Button saveButton = new() { Text = "Save review draft", Dock = DockStyle.Left, Width = 175 };
 
     public MainForm()
     {
-        Text = "Xactimate Reconstruction Estimator | v0.3.0-preview";
+        Text = "Xactimate Reconstruction Estimator | v0.4.0-preview";
         Size = new Size(1280, 760);
         BackColor = Color.FromArgb(17, 23, 35);
         ForeColor = Color.White;
@@ -56,6 +57,7 @@ public sealed class MainForm : Form
         var toolbar = new Panel { Dock = DockStyle.Top, Height = 44 };
         toolbar.Controls.Add(bell);
         toolbar.Controls.Add(saveButton);
+        toolbar.Controls.Add(reportButton);
         toolbar.Controls.Add(toggleButton);
         toolbar.Controls.Add(importButton);
         Controls.Add(grid);
@@ -70,6 +72,7 @@ public sealed class MainForm : Form
         };
         toggleButton.Click += (_, _) => { showCandidates = !showCandidates; RefreshGrid(); };
         saveButton.Click += (_, _) => SaveReview();
+        reportButton.Click += (_, _) => ExportReport();
         grid.DataError += (_, e) => { status.Text = "Invalid entry. Quantity must be non-negative."; e.ThrowException = false; };
         DragEnter += (_, e) => e.Effect = e.Data?.GetDataPresent(DataFormats.FileDrop) == true
             ? DragDropEffects.Copy : DragDropEffects.None;
@@ -123,6 +126,25 @@ public sealed class MainForm : Form
             status.Text = $"Saved {reviewLines.Count} review candidates to {dialog.FileName} (not a priced estimate).";
         }
         catch (Exception ex) { MessageBox.Show(this, ex.Message, "Save failed"); }
+    }
+
+    private void ExportReport()
+    {
+        if (imported is null) { status.Text = "Import an estimate before exporting."; return; }
+        if (showCandidates && !grid.EndEdit()) { status.Text = "Resolve invalid edits before exporting."; return; }
+        using var dialog = new SaveFileDialog
+        {
+            Filter = "Printable HTML report (*.html)|*.html",
+            FileName = (imported.EstimateNumber ?? "estimate") + "-reconstruction-scope.html"
+        };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        try
+        {
+            ScopeHtmlReport.Export(dialog.FileName, imported.EstimateNumber, imported.PriceList, reviewLines);
+            status.Text = "Unpriced scope report saved. Open HTML in browser and use Print > Save as PDF.";
+            MessageBox.Show(this, "Report saved. Open it in your browser and choose Print > Save as PDF.", "Report ready");
+        }
+        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Export failed"); }
     }
 
     private void RefreshGrid()
