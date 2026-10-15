@@ -12,8 +12,9 @@ public static class ReconstructionMapper
     // Exact material, assembly and quantities must be confirmed by an estimator.
     public static IReadOnlyList<ReconstructionCandidate> Map(IEnumerable<ImportedLine> lines)
     {
+        var source = lines.ToList();
         var output = new List<ReconstructionCandidate>();
-        foreach (var item in lines)
+        foreach (var item in source)
         {
             var d = item.Description.ToLowerInvariant();
             void Add(string work, decimal qty, string unit, string note) =>
@@ -44,8 +45,17 @@ public static class ReconstructionMapper
                 Add("Reset existing baseboard", item.Quantity, item.Unit,
                     "VERIFY baseboard is retained and serviceable; finish work separately.");
             else if (d.Contains("tear out toe kick"))
-                Add("Repair/replace removed toe kick", item.Quantity, item.Unit,
-                    "CHECK source estimate for already included re-skin to prevent duplication.");
+            {
+                // A source line already covering re-skin is a potential duplicate.
+                // Do not auto-add replacement when a matching re-skin line exists.
+                var hasReskin = source.Any(other =>
+                    other.Room.Equals(item.Room, StringComparison.OrdinalIgnoreCase) &&
+                    other.Description.Contains("re-skin toe kick", StringComparison.OrdinalIgnoreCase) &&
+                    other.Quantity == item.Quantity && other.Unit == item.Unit);
+                if (!hasReskin)
+                    Add("Repair/replace removed toe kick", item.Quantity, item.Unit,
+                        "VERIFY missing toe-kick finish, existing scope and field condition.");
+            }
             else if ((d.Contains("washer") || d.Contains("dryer")) && d.Contains("detach"))
                 Add("Reset existing appliance", item.Quantity, item.Unit,
                     "VERIFY retained appliance, connection requirements and serviceability.");
