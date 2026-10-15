@@ -51,12 +51,12 @@ public sealed class MainForm : Form
 
     public MainForm()
     {
-        Text = "Xactimate Reconstruction Estimator | v0.6.0-preview";
+        Text = "Xactimate Reconstruction Estimator | v0.6.1-preview";
         Size = new Size(1280, 760);
         BackColor = Color.FromArgb(17, 23, 35);
         ForeColor = Color.White;
         AllowDrop = true;
-        var toolbar = new Panel { Dock = DockStyle.Top, Height = 44 };
+        var toolbar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 48, AutoScroll = true, WrapContents = false, FlowDirection = FlowDirection.LeftToRight };
         toolbar.Controls.Add(bell);
         toolbar.Controls.Add(saveButton);
         toolbar.Controls.Add(reportButton);
@@ -118,7 +118,6 @@ public sealed class MainForm : Form
     private void SaveReview()
     {
         if (imported is null) { status.Text = "Import an estimate or open a review draft before saving."; return; }
-        if (!showCandidates) { status.Text = "Switch to reconstruction candidates before saving."; return; }
         if (!Validate() || !grid.EndEdit()) { status.Text = "Resolve invalid edits before saving."; return; }
         using var dialog = new SaveFileDialog
         {
