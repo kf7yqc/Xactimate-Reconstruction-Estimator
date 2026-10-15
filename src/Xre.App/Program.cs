@@ -268,7 +268,7 @@ public sealed partial class MainForm : Form
             var parsed = XactimatePdfImporter.Import(path);
             if (!ConfirmDiscardReview()) return;
             imported = parsed;
-            candidates = ReconstructionMapper.Map(imported.Lines);
+            candidates = RequiredScopeAdditions.Generate(imported.Lines, ReconstructionMapper.Map(imported.Lines));
             reviewLines = ScopeReviewStore.FromCandidates(candidates);
             showCandidates = false;
             RefreshGrid();
