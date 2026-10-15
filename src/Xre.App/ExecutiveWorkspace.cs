@@ -60,6 +60,7 @@ public sealed partial class MainForm
         }
         Nav("DASHBOARD", (_, _) => ShowScopeSummary());
         Nav("IMPORT ESTIMATE", (_, _) => importButton.PerformClick());
+        Nav("XACTIMATE PRICE LIST", (_, _) => priceListButton.PerformClick());
         Nav("RECONSTRUCTION BUILDER", (_, _) => { showCandidates = true; RefreshGrid(); });
         Nav("MITIGATION SOURCE", (_, _) => { if (imported?.Lines.Count > 0) { showCandidates = false; RefreshGrid(); } });
         Nav("SAVE REVIEW", (_, _) => saveButton.PerformClick());
