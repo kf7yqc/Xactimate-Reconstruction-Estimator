@@ -48,10 +48,12 @@ public sealed class MainForm : Form
     private readonly Button openDraftButton = new() { Text = "Open review draft", Dock = DockStyle.Left, Width = 170 };
     private readonly Button reportButton = new() { Text = "Export scope report", Dock = DockStyle.Left, Width = 180 };
     private readonly Button saveButton = new() { Text = "Save review draft", Dock = DockStyle.Left, Width = 175 };
+    private readonly Button addLineButton = new() { Text = "Add scope line", Width = 125, Height = 30 };
+    private readonly Button removeLineButton = new() { Text = "Remove selected", Width = 145, Height = 30 };
 
     public MainForm()
     {
-        Text = "Xactimate Reconstruction Estimator | v0.6.2-preview";
+        Text = "Xactimate Reconstruction Estimator | v0.7.0-preview";
         Size = new Size(1280, 760);
         BackColor = Color.FromArgb(17, 23, 35);
         ForeColor = Color.White;
@@ -64,6 +66,8 @@ public sealed class MainForm : Form
         toolbar.Controls.Add(csvButton);
         toolbar.Controls.Add(toggleButton);
         toolbar.Controls.Add(importButton);
+        toolbar.Controls.Add(addLineButton);
+        toolbar.Controls.Add(removeLineButton);
         Controls.Add(grid);
         Controls.Add(status);
         Controls.Add(toolbar);
@@ -79,6 +83,8 @@ public sealed class MainForm : Form
         reportButton.Click += (_, _) => ExportReport();
         openDraftButton.Click += (_, _) => OpenReview();
         csvButton.Click += (_, _) => ExportCsv();
+        addLineButton.Click += (_, _) => AddScopeLine();
+        removeLineButton.Click += (_, _) => RemoveScopeLine();
         grid.DataError += (_, e) => { status.Text = "Invalid entry. Quantity must be non-negative."; e.ThrowException = false; };
         DragEnter += (_, e) => e.Effect = e.Data?.GetDataPresent(DataFormats.FileDrop) == true
             ? DragDropEffects.Copy : DragDropEffects.None;
@@ -87,6 +93,43 @@ public sealed class MainForm : Form
             if (e.Data?.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
                 ImportFile(files[0]);
         };
+    }
+
+    private void AddScopeLine()
+    {
+        if (imported is null) { status.Text = "Import an estimate or open a draft first."; return; }
+        if (showCandidates && !grid.EndEdit()) { status.Text = "Resolve the current edit first."; return; }
+        var next = reviewLines.Count == 0 ? 1 : reviewLines.Max(x => x.SourceLine) + 1;
+        reviewLines.Add(new EditableScopeLine
+        {
+            SourceLine = next, Room = "Manual", Work = "Describe required reconstruction work",
+            Quantity = 1m, Unit = "EA", ReviewNote = "MANUALLY ADDED — verify scope and quantity.",
+            Approved = false
+        });
+        showCandidates = true;
+        RefreshGrid();
+        if (grid.Rows.Count > 0)
+        {
+            grid.ClearSelection();
+            grid.Rows[grid.Rows.Count - 1].Selected = true;
+            grid.CurrentCell = grid.Rows[grid.Rows.Count - 1].Cells["Work"];
+            grid.BeginEdit(true);
+        }
+        status.Text = "Manual scope line added. Review description, quantity and unit.";
+    }
+
+    private void RemoveScopeLine()
+    {
+        if (!showCandidates || grid.CurrentRow?.DataBoundItem is not EditableScopeLine line)
+        {
+            status.Text = "Select a reconstruction scope line to remove.";
+            return;
+        }
+        if (MessageBox.Show(this, "Remove the selected reconstruction scope line?",
+            "Confirm removal", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+            return;
+        reviewLines.Remove(line);
+        status.Text = "Selected scope line removed from this review.";
     }
 
     private void ImportFile(string path)
