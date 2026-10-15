@@ -92,18 +92,29 @@ public static class ScopePdfEstimate
             y += height;
             graphics!.DrawLine(new XPen(XColor.FromArgb(222, 229, 236), 0.6), 38, y - 3, 574, y - 3);
         }
-        if (y > 665) NewPage();
+        if (y > 595) NewPage();
         y += 15;
         graphics!.DrawLine(new XPen(teal, 2), 350, y, 574, y);
         y += 10;
         Text("PRICED LINE SUBTOTAL", bold, navy, 350, y, 150);
         Text(total.ToString("C2", CultureInfo.GetCultureInfo("en-US")), bold, navy, 495, y, 73, XStringFormats.TopRight);
         y += 22;
+        var overhead = decimal.Round(total * 0.10m, 2, MidpointRounding.AwayFromZero);
+        var profit = decimal.Round((total + overhead) * 0.10m, 2, MidpointRounding.AwayFromZero);
+        Text("OVERHEAD (10%)", regular, navy, 350, y, 150);
+        Text(overhead.ToString("C2", CultureInfo.GetCultureInfo("en-US")), bold, navy, 495, y, 73, XStringFormats.TopRight);
+        y += 18;
+        Text("PROFIT (10%, CUMULATIVE)", regular, navy, 350, y, 150);
+        Text(profit.ToString("C2", CultureInfo.GetCultureInfo("en-US")), bold, navy, 495, y, 73, XStringFormats.TopRight);
+        y += 18;
+        Text("TOTAL INCLUDING O&P", bold, navy, 350, y, 150);
+        Text((total + overhead + profit).ToString("C2", CultureInfo.GetCultureInfo("en-US")), bold, navy, 495, y, 73, XStringFormats.TopRight);
+        y += 22;
         Text($"Unpriced lines: {unpriced} of {items.Count}", regular, gray, 350, y, 220);
         y += 22;
-        Text("Taxes, O&P, permits and adjustments are NOT calculated.", regular, gray, 38, y, 530);
+        Text("Taxes, permits and other adjustments are NOT calculated.", regular, gray, 38, y, 530);
         y += 16;
-        Text("DRAFT — NOT AN OFFICIAL XACTIMATE ESTIMATE. Verify all scope, quantities and rates.", bold, navy, 38, y, 536);
+        Text("DRAFT — NOT AN OFFICIAL XACTIMATE ESTIMATE. O&P excludes unpriced lines. Verify rates.", bold, navy, 38, y, 536);
         graphics.Dispose();
         document.Save(path);
     }
