@@ -18,7 +18,7 @@ jobs:
       - name: Build
         run: dotnet build src/Xre.App/Xre.App.csproj -c Release --no-restore
       - name: Publish Windows application
-        run: dotnet publish src/Xre.App/Xre.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+        run: dotnet publish src/Xre.App/Xre.App.csproj -c Release -p:InformationalVersion=0.8.0-build.${{ github.run_number }} -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
       - name: Package tester ZIP and checksum
         shell: pwsh
         run: |
@@ -32,14 +32,13 @@ jobs:
           path: publish/
           if-no-files-found: error
           retention-days: 14
-      - name: Publish downloadable GitHub prerelease
-        continue-on-error: true
+      - name: Publish downloadable GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          $tag = "preview-build-${{ github.run_number }}"
-          gh release create $tag Xactimate-Reconstruction-Estimator-win-x64-preview.zip SHA256SUMS.txt --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "Windows Tester Preview #${{ github.run_number }}" --notes "Automated unpriced reconstruction scope preview. Windows x64. Extract ZIP and launch Xre.App.exe. This preview is not a licensed Xactimate pricing integration. Review all quantities and scope items before use." --prerelease --latest=false
+          $tag = "build-${{ github.run_number }}"
+          gh release create $tag Xactimate-Reconstruction-Estimator-win-x64-preview.zip SHA256SUMS.txt --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "Windows Tester Preview #${{ github.run_number }}" --notes "Automated unpriced reconstruction scope preview. Windows x64. Extract ZIP and launch Xre.App.exe. This preview is not a licensed Xactimate pricing integration. Review all quantities and scope items before use." --latest
       - name: Run preview smoke tests (non-blocking)
         continue-on-error: true
         run: dotnet run --project tests/Xre.SmokeTests/Xre.SmokeTests.csproj -c Release
