@@ -9,8 +9,11 @@ public sealed class EditableScopeLine : INotifyPropertyChanged
     public string Room { get; set; } = "";
     public string Work { get; set; } = "";
     private decimal quantity;
-    public decimal Quantity { get => quantity; set { if (value < 0) throw new ArgumentOutOfRangeException(nameof(Quantity)); quantity = value; Changed(nameof(Quantity)); } }
+    public decimal Quantity { get => quantity; set { if (value < 0) throw new ArgumentOutOfRangeException(nameof(Quantity)); quantity = value; Changed(nameof(Quantity)); Changed(nameof(LineTotal)); } }
     public string Unit { get; set; } = "";
+    private decimal? unitPrice;
+    public decimal? UnitPrice { get => unitPrice; set { if (value < 0) throw new ArgumentOutOfRangeException(nameof(UnitPrice)); unitPrice = value; Changed(nameof(UnitPrice)); Changed(nameof(LineTotal)); } }
+    public decimal? LineTotal => UnitPrice.HasValue ? decimal.Round(Quantity * UnitPrice.Value, 2, MidpointRounding.AwayFromZero) : null;
     public string ReviewNote { get; set; } = "";
     private bool approved;
     public bool Approved { get => approved; set { approved = value; Changed(nameof(Approved)); } }
