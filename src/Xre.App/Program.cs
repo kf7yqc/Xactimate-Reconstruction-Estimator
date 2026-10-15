@@ -40,6 +40,7 @@ public sealed partial class MainForm : Form
     };
     private readonly Button bell = new() { Text = "Updates", Dock = DockStyle.Right, Width = 180 };
     private AvailableUpdate? availableUpdate;
+    private readonly System.Windows.Forms.Timer updateTimer = new() { Interval = 30 * 60 * 1000 };
     private readonly Button importButton = new() { Text = "Import mitigation PDF", Dock = DockStyle.Left, Width = 210 };
     private readonly Button toggleButton = new() { Text = "Show reconstruction candidates", Dock = DockStyle.Left, Width = 260 };
     private ImportResult? imported;
@@ -87,7 +88,9 @@ public sealed partial class MainForm : Form
             button.Margin = new Padding(3, 0, 3, 0);
         }
         bell.Click += async (_, _) => await OpenUpdateCenterAsync();
-        Shown += async (_, _) => await CheckForUpdatesAsync(false);
+        Shown += async (_, _) => { await CheckForUpdatesAsync(false); updateTimer.Start(); };
+        updateTimer.Tick += async (_, _) => await CheckForUpdatesAsync(false);
+        FormClosed += (_, _) => updateTimer.Dispose();
         importButton.Click += (_, _) =>
         {
             using var dialog = new OpenFileDialog { Filter = "PDF estimate (*.pdf)|*.pdf" };
