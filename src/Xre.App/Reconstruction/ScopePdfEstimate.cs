@@ -1,5 +1,7 @@
 using PdfSharp.Drawing;
 using PdfSharp.Pdf;
+using PdfSharp.Fonts;
+using System.Drawing;
 using System.Globalization;
 
 namespace Xre.App.Reconstruction;
@@ -9,6 +11,8 @@ public static class ScopePdfEstimate
 {
     public static void Export(string path, string? estimate, string? priceList, IEnumerable<EditableScopeLine> lines)
     {
+        if (GlobalFontSettings.FontResolver is null)
+            GlobalFontSettings.FontResolver = new WindowsFontResolver();
         var items = lines.ToList();
         using var document = new PdfDocument();
         document.Info.Title = "Reconstruction Estimate - " + (estimate ?? "Draft");
@@ -102,5 +106,29 @@ public static class ScopePdfEstimate
         Text("DRAFT — NOT AN OFFICIAL XACTIMATE ESTIMATE. Verify all scope, quantities and rates.", bold, navy, 38, y, 536);
         graphics.Dispose();
         document.Save(path);
+    }
+}
+
+internal sealed class WindowsFontResolver : IFontResolver
+{
+    public string DefaultFontName => "Arial";
+    public FontResolverInfo? ResolveTypeface(string familyName, bool isBold, bool isItalic)
+    {
+        var face = isBold && isItalic ? "arialbi" : isBold ? "arialbd" : isItalic ? "ariali" : "arial";
+        return new FontResolverInfo(face);
+    }
+
+    public byte[]? GetFont(string faceName)
+    {
+        var file = faceName.ToLowerInvariant() switch
+        {
+            "arialbd" => "arialbd.ttf",
+            "ariali" => "ariali.ttf",
+            "arialbi" => "arialbi.ttf",
+            _ => "arial.ttf"
+        };
+        var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), file);
+        if (!File.Exists(path)) throw new FileNotFoundException("Required Windows font is unavailable.", path);
+        return File.ReadAllBytes(path);
     }
 }
