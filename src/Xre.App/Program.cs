@@ -51,7 +51,7 @@ public sealed class MainForm : Form
 
     public MainForm()
     {
-        Text = "Xactimate Reconstruction Estimator | v0.6.1-preview";
+        Text = "Xactimate Reconstruction Estimator | v0.6.2-preview";
         Size = new Size(1280, 760);
         BackColor = Color.FromArgb(17, 23, 35);
         ForeColor = Color.White;
@@ -91,6 +91,7 @@ public sealed class MainForm : Form
 
     private void ImportFile(string path)
     {
+        if (!ConfirmDiscardReview()) return;
         if (!path.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
         {
             status.Text = "Only PDF files are supported.";
@@ -115,6 +116,15 @@ public sealed class MainForm : Form
         }
     }
 
+    private bool ConfirmDiscardReview()
+    {
+        if (imported is null || reviewLines.Count == 0) return true;
+        return MessageBox.Show(this,
+            "Loading another estimate or draft will replace the current review. Save your current review draft first if you want to keep it. Continue?",
+            "Replace current review?", MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.Yes;
+    }
+
     private void SaveReview()
     {
         if (imported is null) { status.Text = "Import an estimate or open a review draft before saving."; return; }
@@ -135,6 +145,7 @@ public sealed class MainForm : Form
 
     private void OpenReview()
     {
+        if (!ConfirmDiscardReview()) return;
         using var dialog = new OpenFileDialog { Filter = "Review draft (*.json)|*.json" };
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
         try
