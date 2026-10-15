@@ -17,7 +17,7 @@ internal static class Program
     }
 }
 
-public sealed class MainForm : Form
+public sealed partial class MainForm : Form
 {
     private readonly Label status = new()
     {
@@ -57,7 +57,7 @@ public sealed class MainForm : Form
 
     public MainForm()
     {
-        Text = "Xactimate Reconstruction Estimator | v0.9.0-preview";
+        Text = "Xactimate Reconstruction Estimator | v1.0.0-preview";
         Size = new Size(1280, 760);
         BackColor = Color.FromArgb(17, 23, 35);
         MinimumSize = new Size(950, 550);
@@ -75,10 +75,7 @@ public sealed class MainForm : Form
         toolbar.Controls.Add(removeLineButton);
         toolbar.Controls.Add(summaryButton);
         toolbar.Controls.Add(pdfButton);
-        Controls.Add(grid);
-        Controls.Add(status);
-        Controls.Add(toolbar);
-        Controls.Add(heading);
+        BuildExecutiveShell(toolbar);
         foreach (var button in toolbar.Controls.OfType<Button>())
         {
             button.FlatStyle = FlatStyle.Flat;
@@ -116,6 +113,8 @@ public sealed class MainForm : Form
         removeLineButton.Click += (_, _) => RemoveScopeLine();
         summaryButton.Click += (_, _) => ShowScopeSummary();
         pdfButton.Click += (_, _) => ExportPdf();
+        reviewLines.ListChanged += (_, _) => UpdateExecutiveKpis();
+        grid.CellValueChanged += (_, _) => UpdateExecutiveKpis();
         grid.DataError += (_, e) => { status.Text = "Invalid entry. Quantity must be non-negative."; e.ThrowException = false; };
         DragEnter += (_, e) => e.Effect = e.Data?.GetDataPresent(DataFormats.FileDrop) == true
             ? DragDropEffects.Copy : DragDropEffects.None;
@@ -389,5 +388,6 @@ public sealed class MainForm : Form
             foreach (DataGridViewColumn col in grid.Columns)
                 col.ReadOnly = col.Name is "SourceLine" or "Room" or "Unit" or "LineTotal";
         toggleButton.Text = showCandidates ? "Show mitigation items" : "Show reconstruction candidates";
+        UpdateExecutiveKpis();
     }
 }
