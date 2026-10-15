@@ -1,3 +1,4 @@
+using Xre.App.Import;
 using System.Drawing;
 using System.Windows.Forms;
 namespace Xre.App;
@@ -26,6 +27,6 @@ public sealed class MainForm : Form
         bell.Click += (_, _) => MessageBox.Show("Release checking is planned for Milestone 6. No updater is active yet.", "Update Center");
         Controls.Add(drop); Controls.Add(status); Controls.Add(bell); Controls.Add(title);
         DragEnter += (_, e) => e.Effect = e.Data?.GetDataPresent(DataFormats.FileDrop) == true ? DragDropEffects.Copy : DragDropEffects.None;
-        DragDrop += (_, e) => { var files = e.Data?.GetData(DataFormats.FileDrop) as string[]; if (files is { Length: > 0 }) status.Text = files[0].EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? $"Imported path: {files[0]} — parsing not yet implemented" : "Only PDF imports are planned for the initial parser"; };
+        DragDrop += (_, e) => { var files = e.Data?.GetData(DataFormats.FileDrop) as string[]; if (files is { Length: > 0 }) { if (!files[0].EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) { status.Text = "Only PDF imports are supported"; return; } try { var result = XactimatePdfImporter.Import(files[0]); status.Text = $"Parsed {result.Lines.Count} candidate items | Price list: {result.PriceList ?? "not found"} | REVIEW REQUIRED"; MessageBox.Show(string.Join(Environment.NewLine, result.Warnings), "Import validation"); } catch (Exception ex) { status.Text = "Import failed: " + ex.Message; } } };
     }
 }
