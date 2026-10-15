@@ -50,10 +50,11 @@ public sealed class MainForm : Form
     private readonly Button saveButton = new() { Text = "Save review draft", Dock = DockStyle.Left, Width = 175 };
     private readonly Button addLineButton = new() { Text = "Add scope line", Width = 125, Height = 30 };
     private readonly Button removeLineButton = new() { Text = "Remove selected", Width = 145, Height = 30 };
+    private readonly Button summaryButton = new() { Text = "Scope summary", Width = 130, Height = 30 };
 
     public MainForm()
     {
-        Text = "Xactimate Reconstruction Estimator | v0.7.0-preview";
+        Text = "Xactimate Reconstruction Estimator | v0.7.1-preview";
         Size = new Size(1280, 760);
         BackColor = Color.FromArgb(17, 23, 35);
         ForeColor = Color.White;
@@ -68,6 +69,7 @@ public sealed class MainForm : Form
         toolbar.Controls.Add(importButton);
         toolbar.Controls.Add(addLineButton);
         toolbar.Controls.Add(removeLineButton);
+        toolbar.Controls.Add(summaryButton);
         Controls.Add(grid);
         Controls.Add(status);
         Controls.Add(toolbar);
@@ -96,6 +98,7 @@ public sealed class MainForm : Form
         csvButton.Click += (_, _) => ExportCsv();
         addLineButton.Click += (_, _) => AddScopeLine();
         removeLineButton.Click += (_, _) => RemoveScopeLine();
+        summaryButton.Click += (_, _) => ShowScopeSummary();
         grid.DataError += (_, e) => { status.Text = "Invalid entry. Quantity must be non-negative."; e.ThrowException = false; };
         DragEnter += (_, e) => e.Effect = e.Data?.GetDataPresent(DataFormats.FileDrop) == true
             ? DragDropEffects.Copy : DragDropEffects.None;
@@ -104,6 +107,26 @@ public sealed class MainForm : Form
             if (e.Data?.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
                 ImportFile(files[0]);
         };
+    }
+
+    private void ShowScopeSummary()
+    {
+        if (imported is null) { status.Text = "Import an estimate or open a draft first."; return; }
+        if (showCandidates && !grid.EndEdit()) { status.Text = "Resolve the current edit first."; return; }
+        var rooms = reviewLines.GroupBy(x => x.Room, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x.Key)
+            .Select(x => $"{x.Key}: {x.Count()} items ({x.Count(y => y.Approved)} reviewed)")
+            .ToArray();
+        var summary = $"Source estimate: {imported.EstimateNumber ?? "Unknown"}" + Environment.NewLine +
+            $"Mitigation items: {imported.Lines.Count}" + Environment.NewLine +
+            $"Reconstruction scope items: {reviewLines.Count}" + Environment.NewLine +
+            $"Reviewed: {reviewLines.Count(x => x.Approved)}" + Environment.NewLine +
+            $"Pending: {reviewLines.Count(x => !x.Approved)}" + Environment.NewLine +
+            Environment.NewLine + "By room:" + Environment.NewLine + string.Join(Environment.NewLine, rooms) +
+            Environment.NewLine + Environment.NewLine +
+            "Unpriced review only. Verify materials, quantities, assemblies and pricing.";
+        MessageBox.Show(this, summary, "Reconstruction Scope Summary",
+            MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     private void AddScopeLine()
